@@ -1,0 +1,44 @@
+services:
+  server:
+    image: grailhiiv-admin-local:ai-usage-v2.59.3
+    build:
+      context: local-ai-usage
+      dockerfile: Dockerfile
+    environment:
+      CLICKHOUSE_URL: http://twenty:${LOCAL_CLICKHOUSE_PASSWORD:?Set the local ClickHouse password}@clickhouse:8123/twenty
+    depends_on:
+      clickhouse-migrate:
+        condition: service_completed_successfully
+
+  worker:
+    image: twentycrm/twenty@sha256:1a1e8a8db27fef92227e2817678968a17795d586c241be257c3c6305c65706a6
+    environment:
+      CLICKHOUSE_URL: http://twenty:${LOCAL_CLICKHOUSE_PASSWORD:?Set the local ClickHouse password}@clickhouse:8123/twenty
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8.8-alpine@sha256:68b9d9eb4cb949a03d1f90b76fd8d396a5999dd57ba1ee914ea36c77716ce937
+    environment:
+      CLICKHOUSE_DB: twenty
+      CLICKHOUSE_USER: twenty
+      CLICKHOUSE_PASSWORD: ${LOCAL_CLICKHOUSE_PASSWORD:?Set the local ClickHouse password}
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8123/ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
+
+  clickhouse-migrate:
+    image: twentycrm/twenty@sha256:1a1e8a8db27fef92227e2817678968a17795d586c241be257c3c6305c65706a6
+    entrypoint: [node, dist/database/clickhouse/migrations/run-migrations.js]
+    command: []
+    environment:
+      CLICKHOUSE_URL: http://twenty:${LOCAL_CLICKHOUSE_PASSWORD:?Set the local ClickHouse password}@clickhouse:8123/twenty
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+volumes:
+  clickhouse-data:

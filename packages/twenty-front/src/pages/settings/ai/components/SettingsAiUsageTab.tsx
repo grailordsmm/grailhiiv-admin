@@ -24,18 +24,17 @@ export const SettingsAiUsageTab = () => {
   const isBillingEnabled = billing?.isBillingEnabled ?? false;
   const isClickHouseConfigured = useAtomStateValue(isClickHouseConfiguredState);
 
-  const hasEnterpriseAccess =
+  const canViewUsageAnalytics =
+    isClickHouseConfigured ||
     isBillingEnabled ||
     currentWorkspace?.hasValidEnterpriseValidityToken === true;
 
-  const shouldSkipQuery = !hasEnterpriseAccess || !isClickHouseConfigured;
-
   const { analytics, isInitialLoading } = useUsageAnalyticsData({
     operationTypes: AI_OPERATION_TYPES,
-    skip: shouldSkipQuery,
+    skip: !isClickHouseConfigured,
   });
 
-  if (!hasEnterpriseAccess) {
+  if (!canViewUsageAnalytics) {
     return (
       <Section.Root>
         <Section.Header
